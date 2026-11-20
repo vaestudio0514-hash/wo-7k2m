@@ -1,0 +1,61 @@
+把页面放到永久网址上 · 手机操作说明
+==========================================
+
+要传的是这个文件夹里的 11 个文件（一个都不能少、名字不要改）：
+index.html  sibu.html  today.html  buhuo.html  chumen.html
+fang.html  huan.html  guli.html  shuaya.html  sw.js
+tici.html  tici-simple.html
+
+（一共 12 个，index.html 是入口页）
+
+
+第一步 · 登录
+--------------------------------
+Safari 打开 github.com
+用「Continue with Google」登录，就是你现在用的那个账号。
+（这一步只有你自己能做，密码别给我，我也不需要。）
+
+
+第二步 · 建仓库
+--------------------------------
+右上角「+」→ New repository
+Repository name 填：wo  （或者 wo0713、wo-x7k2 这种别人猜不到的）
+选 Public
+点 Create repository
+
+
+第三步 · 上传文件
+--------------------------------
+新页面中间有一行蓝字：
+「uploading an existing file」← 点它
+点「choose your files」
+在「文件」里选中这 12 个文件（可以多选）
+等它全部列出来
+拉到底，绿色按钮「Commit changes」← 点
+
+
+第四步 · 开启网址
+--------------------------------
+顶部「Settings」→ 左边「Pages」
+Source 选：Deploy from a branch
+Branch 选：main，右边保持 / (root)
+点 Save
+等 1～2 分钟，刷新这个页面，顶上会出现一行
+「Your site is live at https://用户名.github.io/wo/」
+这就是你的永久网址。
+
+
+第五步 · 加到桌面
+--------------------------------
+Safari 打开那个网址
+点底部「分享」→「添加到主屏幕」
+名字写「我的」
+以后点这个图标，就到首页，再点哪个进哪个。
+
+
+说明
+--------------------------------
+· 网址固定不变，不用我重启，一小时也不会断
+· 你记的数仍然只存在手机里，别人打开只看得到空表格
+· 仓库名越乱越好，别人猜不到网址就找不到
+· 想改页面内容，跟我说，改完再传一次覆盖就行

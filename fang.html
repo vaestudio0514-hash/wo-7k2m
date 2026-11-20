@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="放一下">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0c0f12">
+<title>放一下</title>
+<style>
+:root{
+  --bg:#0c0f12; --card:#171c21; --ink:#eef1f4; --sub:#7f8891;
+  --line:#232a31; --accent:#5ac8fa; --ok:#4cd964; --warm:#ffb86b;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{
+  color:var(--ink);min-height:100dvh;overflow-x:hidden;
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 20px) 22px calc(30px + env(safe-area-inset-bottom))}
+
+.view{animation:fade .42s cubic-bezier(.2,.8,.3,1) both}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.eyebrow{font-size:12px;letter-spacing:2.5px;color:var(--sub);margin-bottom:10px}
+h1{font-size:28px;font-weight:700;letter-spacing:-.6px;margin:0 0 8px}
+.lead{font-size:14px;color:var(--sub);line-height:1.7;margin:0}
+
+/* 大按钮 */
+.bigbtn{
+  width:100%;margin-top:34px;padding:44px 24px;border-radius:26px;border:1px solid var(--line);
+  background:linear-gradient(160deg,#1a2128,#141920);color:var(--ink);
+  font-size:21px;font-weight:700;letter-spacing:.5px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  transition:transform .12s,background .2s;
+}
+.bigbtn:active{transform:scale(.98);background:#1b232a}
+.bigbtn .ic{font-size:34px;margin-bottom:2px}
+.bigbtn .sm{font-size:13px;font-weight:400;color:var(--sub);letter-spacing:0}
+
+/* 挂着的 */
+.hold{margin-top:26px}
+.holdhead{display:flex;align-items:center;gap:8px;padding:4px 4px 10px;color:var(--sub);font-size:13px}
+.holdhead b{color:var(--ink);font-size:15px;font-weight:600}
+.holdhead .r{margin-left:auto;color:var(--accent);font-size:13px;font-weight:600}
+
+.note{
+  background:var(--card);border-radius:14px;padding:16px 18px;margin-bottom:9px;
+  display:flex;gap:12px;align-items:flex-start;
+  transition:transform .4s cubic-bezier(.4,0,.7,0),opacity .4s,height .3s,margin .3s,padding .3s;
+  overflow:hidden;
+}
+.note.done{transform:translateX(105%) scale(.92);opacity:0;height:0;padding-top:0;padding-bottom:0;margin-bottom:0}
+.note .tm{font-size:12px;color:var(--sub);flex:0 0 auto;padding-top:2px;font-variant-numeric:tabular-nums}
+.note .tx{flex:1;min-width:0;font-size:15px;line-height:1.5;word-break:break-word}
+.note .tx .more{color:var(--sub);font-size:13px}
+
+.clearall{
+  width:100%;margin-top:16px;padding:16px;border-radius:15px;
+  border:1px solid var(--line);background:transparent;
+  color:var(--sub);font-size:15px;font-weight:600;
+}
+.clearall:active{opacity:.6}
+
+/* 输入页 */
+#writearea{
+  width:100%;min-height:38vh;margin-top:22px;padding:18px;
+  border-radius:18px;border:1px solid var(--line);background:var(--card);
+  color:var(--ink);font-size:18px;line-height:1.6;font-family:inherit;
+  outline:none;resize:none;-webkit-appearance:none;
+}
+#writearea:focus{border-color:var(--accent)}
+.sendlbl{font-size:12px;color:var(--sub);margin-top:14px;line-height:1.6}
+.two{display:flex;gap:10px;margin-top:18px}
+.two button{
+  flex:1;padding:17px;border-radius:15px;border:none;font-size:16px;font-weight:700;
+  background:var(--line);color:var(--ink);
+}
+.two button.pri{background:var(--accent);color:#07242f}
+.two button:disabled{opacity:.35}
+.two button:active:not(:disabled){transform:scale(.98)}
+
+/* 空的状态 */
+.blank{
+  position:fixed;inset:0;z-index:70;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:30px;
+  animation:blankIn .6s ease both;
+}
+@keyframes blankIn{from{opacity:0}to{opacity:1}}
+.blank .glyph{font-size:46px;opacity:.9;margin-bottom:18px}
+.blank .q{font-size:19px;font-weight:600;line-height:1.7}
+.blank .s{font-size:14px;color:var(--sub);margin-top:12px;line-height:1.7}
+.blank .close{
+  margin-top:34px;padding:14px 34px;border-radius:14px;border:1px solid var(--line);
+  background:transparent;color:var(--ink);font-size:15px;font-weight:600;
+}
+
+.mini{font-size:12px;color:var(--sub);text-align:center;margin-top:22px;line-height:1.7}
+
+/* 一分钟雨 */
+.rainover{
+  position:fixed;inset:0;z-index:90;background:#07090c;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  animation:blankIn .4s ease both;transition:opacity .3s;
+}
+.rainover.out{opacity:0}
+.rainover .cn{font-size:66px;font-weight:200;font-variant-numeric:tabular-nums;letter-spacing:-2px}
+.rainover .lb{font-size:14px;color:var(--sub);margin-top:12px;letter-spacing:1px}
+.rainover .stp{
+  margin-top:44px;padding:13px 36px;border-radius:14px;
+  border:1px solid var(--line);background:transparent;color:var(--ink);font-size:15px;font-weight:600;
+}
+
+/* 快捷行 */
+.quick{display:flex;gap:10px;margin-top:12px}
+.quick button{
+  flex:1;padding:15px 10px;border-radius:15px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);font-size:14px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+}
+.quick button:active{opacity:.65}
+.quick button .e{font-size:21px}
+
+/* 表情上浮 */
+.peak{
+  position:fixed;z-index:95;pointer-events:none;font-size:22px;
+  animation:peakUp .9s ease-out forwards;
+}
+@keyframes peakUp{
+  0%{opacity:0;transform:translate(-50%,0) scale(.7)}
+  25%{opacity:1;transform:translate(-50%,-14px) scale(1.05)}
+  100%{opacity:0;transform:translate(-50%,-56px) scale(.9)}
+}
+
+/* 洗漱提示 */
+.wash{
+  display:flex;justify-content:center;gap:16px;margin-top:22px;font-size:24px;
+  animation:fade .8s ease both .3s;opacity:0;
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+(function(){
+'use strict';
+
+var KEY = 'fang.v1';
+var S = { items: [] };
+var showList = false;
+var ac = null;
+
+function $(id){ return document.getElementById(id); }
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function hhmm(ts){
+  var d = new Date(ts);
+  return pad(d.getHours())+':'+pad(d.getMinutes());
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+function load(){
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw){
+      var o = JSON.parse(raw);
+      if (o && Array.isArray(o.items)) S = o;
+    }
+  } catch(e){}
+  S.items = (S.items||[]).filter(function(i){ return i && i.id && i.text; });
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+/* ---------- 声音 ---------- */
+function ctx(){
+  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === 'suspended') ac.resume();
+  return ac;
+}
+function tone(f, dur, vol, type, delay){
+  try {
+    var a = ctx(), t = a.currentTime + (delay||0);
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol||.08, t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t+dur+0.03);
+  } catch(e){}
+}
+
+/* ---------- 首页 ---------- */
+function home(){
+  var n = S.items.length;
+  var o = '<div class="view">';
+  o += '<div class="eyebrow">放一下</div>';
+  o += '<h1>' + (n ? '有几件挂着' : '现在是空的') + '</h1>';
+  o += '<p class="lead">难受的时候不用解决它，先写下来放这儿。<br>等缓过来再回来。</p>';
+
+  o += '<button class="bigbtn" id="go">' +
+       '<span class="ic">✍️</span>' +
+       '<span>现在心里有事</span>' +
+       '<span class="sm">写一句，就放这儿</span>' +
+       '</button>';
+
+  o += '<div class="quick">' +
+       '<button id="rain1"><span class="e">🌧️</span>听一分钟雨</button>' +
+       '<button id="clearq"><span class="e">🍃</span>先喘口气</button>' +
+       '</div>';
+
+  if (n){
+    o += '<div class="hold">';
+    o += '<div class="holdhead"><b>' + n + '</b> 件挂着<span class="r" id="togg">' +
+         (showList ? '收起' : '看一下') + '</span></div>';
+    if (showList){
+      S.items.forEach(function(it){
+        o += '<div class="note" data-id="'+it.id+'">' +
+             '<span class="tm">'+hhmm(it.at)+'</span>' +
+             '<span class="tx">'+esc(cut(it.text, 60))+'</span></div>';
+      });
+      o += '<button class="clearall" id="clearall">全部清空</button>';
+    }
+    o += '</div>';
+  }
+
+  o += '<div class="mini">写的只有你自己看得见，存在这台手机上。<br>清空之后不会留任何东西。</div>';
+  o += '</div>';
+  $('app').innerHTML = o;
+
+  $('go').onclick = write;
+  if ($('rain1')) $('rain1').onclick = rainMinute;
+  if ($('clearq')) $('clearq').onclick = breatheMinute;
+  if ($('togg')) $('togg').onclick = function(){ showList = !showList; home(); };
+  if ($('clearall')) $('clearall').onclick = clearAll;
+
+}
+
+function cut(s, n){
+  s = String(s).replace(/\s+/g, ' ').trim();
+  return s.length > n ? (s.slice(0, n) + '…') : s;
+}
+
+/* ---------- 写 ---------- */
+function write(){
+  var o = '<div class="view">';
+  o += '<div class="eyebrow">写下来</div>';
+  o += '<h1>一句话就行</h1>';
+  o += '<p class="lead">不用写清楚，也不用分析。写下来是为了放下，不是为了想明白。</p>';
+  o += '<textarea id="writearea" placeholder="我现在……"></textarea>';
+  o += '<div class="sendlbl">写完会收走，不会再催你。</div>';
+  o += '<div class="two">' +
+        '<button id="cancel">算了</button>' +
+        '<button class="pri" id="send" disabled>放进去</button>' +
+       '</div>';
+  o += '</div>';
+  $('app').innerHTML = o;
+
+  var ta = $('writearea'), send = $('send');
+  ta.oninput = function(){ send.disabled = !ta.value.trim(); };
+  $('cancel').onclick = home;
+  send.onclick = function(){
+    var v = ta.value.trim();
+    if (!v) return;
+    S.items.unshift({ id: uid(), text: v, at: Date.now() });
+    save();
+    tone(880, .18, .08); tone(1320, .3, .06, 'sine', .1);
+    pop(window.innerWidth/2, window.innerHeight*0.42, '🫧');
+    home();
+  };
+  try { ta.focus(); } catch(e){}
+}
+
+/* ---------- 清空 ---------- */
+function clearAll(){
+  var n = S.items.length;
+  if (!n) return;
+  var notes = $('app').querySelectorAll('.note');
+  for (var i=0;i<notes.length;i++){
+    (function(el, i){
+      setTimeout(function(){
+        el.classList.add('done');
+        tone(440 + i*70, .18, .06);
+      }, i*90);
+    })(notes[i], i);
+  }
+  setTimeout(function(){
+    S.items = [];
+    save();
+    showList = false;
+    flashEmpty();
+  }, n*90 + 420);
+}
+
+function flashEmpty(){
+  var d = document.createElement('div');
+  d.className = 'blank';
+  d.innerHTML = '<div class="glyph">🌤️</div>' +
+    '<div class="q">空了</div>' +
+    '<div class="s">都放完了。<br>现在不用想它们，也不用想刚才。<br>去洗把脸 🫧，或者刷个牙 🪥，慢一点就行。</div>' +
+    '<div class="wash">🫧 🪥 🚿 🧼 🌿</div>' +
+    '<button class="close">好</button>';
+  document.body.appendChild(d);
+  tone(523,.5,.06); tone(392,.6,.05,'sine',.12); tone(261,.9,.05,'sine',.3);
+  d.querySelector('.close').onclick = function(){
+    d.remove();
+    home();
+  };
+}
+
+/* ---------- 一分钟：雨 ---------- */
+function noiseBuffer(a){
+  var len = a.sampleRate * 2, buf = a.createBuffer(1, len, a.sampleRate);
+  var d = buf.getChannelData(0);
+  for (var i=0;i<len;i++) d[i] = (Math.random()*2-1) * 0.42;
+  return buf;
+}
+
+function makeOverlay(html){
+  var ov = document.createElement('div');
+  ov.className = 'rainover';
+  ov.innerHTML = html;
+  document.body.appendChild(ov);
+  return ov;
+}
+
+function rainMinute(){
+  if (document.querySelector('.rainover')) return;
+  var ov = makeOverlay(
+    '<div class="cn" id="rcn">60</div>' +
+    '<div class="lb">只听着，一分钟</div>' +
+    '<button class="stp" id="rstp">结束</button>'
+  );
+  var a = ctx();
+  var src = a.createBufferSource();
+  src.buffer = noiseBuffer(a); src.loop = true;
+  var hp = a.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=180;
+  var lp = a.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1400;
+  var g = a.createGain(); g.gain.value = 0.16;
+  src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(a.destination);
+  src.start();
+
+  var left = 60, done = false;
+  function stop(){
+    if (done) return;
+    done = true;
+    clearInterval(iv);
+    try { src.stop(); } catch(e){}
+    try { g.disconnect(); } catch(e){}
+    ov.classList.add('out');
+    setTimeout(function(){ ov.remove(); }, 320);
+  }
+  var iv = setInterval(function(){
+    left--;
+    var el = document.getElementById('rcn');
+    if (el) el.textContent = Math.max(0, left);
+    if (left <= 0){
+      stop();
+      tone(523,.4,.05); tone(392,.5,.04,'sine',.1);
+    }
+  }, 1000);
+  document.getElementById('rstp').onclick = stop;
+}
+
+/* ---------- 一分钟：呼吸 ---------- */
+function breatheMinute(){
+  if (document.querySelector('.rainover')) return;
+  var ov = makeOverlay(
+    '<div class="cn" id="bcn" style="font-size:26px;font-weight:600">吸气</div>' +
+    '<div class="lb">跟着提示，一分钟</div>' +
+    '<button class="stp" id="bstp">结束</button>'
+  );
+  var el = document.getElementById('bcn');
+  var phase = 'in', left = 60, done = false;
+
+  function tick(){
+    if (done) return;
+    if (phase === 'in'){
+      el.textContent = '吸气';
+      tone(392,.5,.04);
+      phase = 'out';
+      setTimeout(tick, 4000);
+    } else {
+      el.textContent = '呼气';
+      tone(294,.6,.035);
+      phase = 'in';
+      setTimeout(tick, 6000);
+    }
+  }
+  function stop(){
+    if (done) return;
+    done = true;
+    clearInterval(iv);
+    ov.classList.add('out');
+    setTimeout(function(){ ov.remove(); }, 320);
+  }
+  var iv = setInterval(function(){
+    left--;
+    if (left <= 0){ stop(); tone(523,.4,.05); tone(392,.5,.04,'sine',.1); }
+  }, 1000);
+  setTimeout(tick, 200);
+  document.getElementById('bstp').onclick = stop;
+}
+
+/* ---------- 表情反馈 ---------- */
+function pop(x, y, ch){
+  var s = document.createElement('div');
+  s.className = 'peak';
+  s.textContent = ch;
+  s.style.left = x + 'px';
+  s.style.top = y + 'px';
+  document.body.appendChild(s);
+  setTimeout(function(){ s.remove(); }, 950);
+}
+
+/* ---------- 启动 ---------- */
+load();
+
+$('app').addEventListener('click', function(e){
+  var el = e.target.closest('.note[data-id]');
+  if (!el) return;
+  el.classList.add('done');
+  var id = el.dataset.id;
+  pop(e.clientX || window.innerWidth/2, e.clientY || 300, '✨');
+  setTimeout(function(){
+    S.items = S.items.filter(function(i){ return i.id !== id; });
+    save();
+    tone(660, .2, .07);
+    if (!S.items.length){ showList = false; flashEmpty(); }
+    else home();
+  }, 380);
+});
+
+home();
+
+if ('serviceWorker' in navigator && location.protocol === 'http:'){
+  navigator.serviceWorker.register('./sw.js').catch(function(){});
+}
+})();
+</script>
+</body>
+</html>

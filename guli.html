@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="做到">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0e11">
+<title>做到</title>
+<style>
+:root{--bg:#0b0e11;--card:#161b20;--ink:#eef1f4;--sub:#7d868f;--line:#232a31;--accent:#5ac8fa;--ok:#4cd964}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);height:100%}
+body{color:var(--ink);overflow:hidden;font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;-webkit-user-select:none;user-select:none}
+.app{height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:calc(env(safe-area-inset-top) + 20px) 24px calc(env(safe-area-inset-bottom) + 24px)}
+.fade{animation:fade .5s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.eyebrow{font-size:12px;letter-spacing:2.5px;color:var(--sub);margin-bottom:16px}
+.quote{font-size:27px;font-weight:700;line-height:1.6;letter-spacing:-.4px;max-width:340px}
+.sub{font-size:14px;color:var(--sub);margin-top:18px;line-height:1.8;max-width:300px}
+.btn{width:100%;max-width:340px;margin-top:40px;padding:21px;border-radius:19px;border:none;background:var(--accent);color:#062430;font-size:18px;font-weight:800;box-shadow:0 10px 28px rgba(90,200,250,.25)}
+.btn:active{transform:scale(.98)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none;font-weight:600}
+.big{font-size:64px;font-weight:200;font-variant-numeric:tabular-nums;letter-spacing:-2px}
+.tiny{font-size:13px;color:var(--sub);margin-top:10px;letter-spacing:1px}
+.done-e{font-size:56px;margin-bottom:14px}
+.done-q{font-size:26px;font-weight:700;line-height:1.6}
+.done-s{font-size:14px;color:var(--sub);margin-top:14px;line-height:1.8;max-width:310px}
+.count{margin-top:22px;font-size:13px;color:var(--ok);letter-spacing:1px}
+.locknum{font-size:44px;font-weight:200;font-variant-numeric:tabular-nums;margin-top:16px;color:var(--sub)}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<script>
+(function(){
+'use strict';
+var KEY='guli.v1', LOCK=10*60*1000;
+var LINES=[
+ '带着焦虑也能刷，这就是练习。',
+ '不用等到安心才开始。',
+ '目标是做了，不是干净。',
+ '不完美也算数。',
+ '手抖着刷，也是刷。',
+ '今天不需要更好，只需要做。',
+ '完成比确定重要。',
+ '你不是在证明干净，是在练习不停下。'
+];
+var $=function(i){return document.getElementById(i)};
+var S={name:'做到',date:'',n:0,lockUntil:0}, ac=null, timer=null, left=0;
+
+function pad(n){return String(n).padStart(2,'0')}
+function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function load(){try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);if(o&&typeof o.n==='number')S=o}}catch(e){}
+ if(!S.name)S.name='做到';
+ if(S.date!==today()){S.date=today();S.n=0;S.lockUntil=0} }
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function ctx(){if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();return ac}
+function tone(f,d,v,delay){try{var a=ctx(),t=a.currentTime+(delay||0),o=a.createOscillator(),g=a.createGain();
+ o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(.0001,t);
+ g.gain.exponentialRampToValueAtTime(v||.07,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+ o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+.03)}catch(e){}}
+function ring(){tone(523,.3,.06);tone(659,.3,.05,0.1);tone(784,.45,.05,0.22)}
+
+function home(){
+ clearInterval(timer);timer=null;
+ var lockLeft=Math.max(0,S.lockUntil-Date.now());
+ if(lockLeft>0){locked(lockLeft);return}
+ var q=LINES[Math.floor(Math.random()*LINES.length)];
+ $('app').innerHTML='<div class="fade">'+
+  '<div class="eyebrow" id="nm" style="text-decoration:underline dotted;text-underline-offset:4px">'+S.name+'</div>'+
+  '<div class="quote">'+q+'</div>'+
+  '<div class="sub">不检查，不回头。<br>只往前。</div>'+
+  '<button class="btn" id="go">我去了</button>'+
+  '<div class="count">'+(S.n>0?('今天做到了 '+S.n+' 次'):'')+'</div>'+
+ '</div>';
+ $('go').onclick=start;
+ var nm=$('nm');
+ if(nm) nm.onclick=function(){
+  var v=prompt('给这一页起个名字：',S.name);
+  if(v&&v.trim()){S.name=v.trim().slice(0,12);save();home()}
+ };
+}
+
+function start(){
+ tone(660,.15,.06);
+ left=180;
+ $('app').innerHTML='<div class="fade">'+
+  '<div class="big" id="sec">3:00</div>'+
+  '<div class="tiny">不用做完美</div>'+
+  '<button class="btn ghost" id="fin" style="margin-top:46px">做完了</button>'+
+ '</div>';
+ $('fin').onclick=finish;
+ clearInterval(timer);
+ timer=setInterval(function(){
+  left--;
+  var e=document.getElementById('sec');
+  if(e)e.textContent=Math.floor(left/60)+':'+pad(Math.max(0,left%60));
+  if(left<=0){finish()}
+ },1000);
+}
+
+function finish(){
+ clearInterval(timer);timer=null;
+ S.n++;S.lockUntil=Date.now()+LOCK;S.date=today();save();
+ ring();
+ var left2=12;
+ $('app').innerHTML='<div class="fade">'+
+  '<div class="done-e">✅</div>'+
+  '<div class="done-q">做到了</div>'+
+  '<div class="done-s">带着不确定，也做完了。<br>这就是今天唯一要发生的事。</div>'+
+  '<div class="count">今天第 '+S.n+' 次</div>'+
+  '<div class="locknum" id="cf" style="margin-top:26px">'+left2+'</div>'+
+  '<div class="tiny">还有这么多秒，可以看着它确定</div>'+
+  '<button class="btn ghost" id="ok" style="margin-top:22px">我确定</button>'+
+ '</div>';
+ $('ok').onclick=function(){clearInterval(timer);home()};
+ timer=setInterval(function(){
+  left2--;
+  var e=document.getElementById('cf');
+  if(e)e.textContent=Math.max(0,left2);
+  if(left2<=0){clearInterval(timer);home()}
+ },1000);
+}
+
+function locked(ms){
+ $('app').innerHTML='<div class="fade">'+
+  '<div class="eyebrow">已经记下了</div>'+
+  '<div class="done-q">不用再看</div>'+
+  '<div class="locknum" id="lk">'+fmt(ms)+'</div>'+
+  '<div class="sub">回头验证不解决问题，只会让它更确定。</div>'+
+ '</div>';
+ clearInterval(timer);
+ timer=setInterval(function(){
+  var l=Math.max(0,S.lockUntil-Date.now());
+  var e=document.getElementById('lk');
+  if(e)e.textContent=fmt(l);
+  if(l<=0){clearInterval(timer);home()}
+ },1000);
+}
+function fmt(ms){var s=Math.ceil(ms/1000);return Math.floor(s/60)+':'+pad(s%60)}
+
+load();save();home();
+if('serviceWorker' in navigator && location.protocol==='http:'){navigator.serviceWorker.register('./sw.js').catch(function(){})}
+})();
+</script>
+</body>
+</html>

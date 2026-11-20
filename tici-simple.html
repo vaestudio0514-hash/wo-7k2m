@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>提示词 · 简洁版</title>
+<style>
+  :root{
+    --bg:#0a0c10; --card:#12161c; --line:#242a33;
+    --txt:#e8ecf3; --dim:#8b95a5; --acc:#4f8cff; --acc-soft:rgba(79,140,255,.16);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+    padding:0 0 env(safe-area-inset-bottom);
+  }
+  header{padding:22px 18px 6px}
+  h1{margin:0;font-size:20px;font-weight:650;letter-spacing:.5px}
+  header p{margin:6px 0 0;color:var(--dim);font-size:13px}
+  main{padding:6px 18px 110px}
+  section{margin-top:20px}
+  .label{font-size:12px;color:var(--dim);letter-spacing:.5px;margin-bottom:9px;display:flex;justify-content:space-between}
+  textarea{
+    width:100%;background:var(--card);border:1px solid var(--line);color:var(--txt);
+    border-radius:14px;padding:13px 14px;font:15px/1.5 inherit;resize:none;outline:none;
+  }
+  textarea:focus{border-color:var(--acc)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    background:var(--card);border:1px solid var(--line);color:var(--txt);
+    border-radius:999px;padding:7px 13px;font-size:14px;cursor:pointer;
+    transition:background .12s,border-color .12s,color .12s;
+  }
+  .chip:active{transform:scale(.97)}
+  .chip.on{background:var(--acc-soft);border-color:var(--acc);color:#b9d0ff}
+  .out{margin-top:24px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+  .outhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .outhead span{font-size:13px;color:var(--dim)}
+  .seg{display:flex;background:#0c0f14;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{background:transparent;border:0;color:var(--dim);font-size:12px;padding:5px 10px;font-family:inherit}
+  .seg button.on{background:var(--acc-soft);color:#b9d0ff}
+  pre{
+    margin:0;white-space:pre-wrap;word-break:break-word;
+    font:14px/1.65 -apple-system,"PingFang SC",monospace;color:#d7e0ee;min-height:64px;
+  }
+  .row{display:flex;gap:9px;margin-top:12px}
+  .row button{
+    flex:1;background:#0c0f14;border:1px solid var(--line);color:var(--txt);
+    border-radius:11px;padding:10px;font:14px inherit;
+  }
+  footer{
+    position:fixed;left:0;right:0;bottom:0;padding:10px 18px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,var(--bg) 65%,rgba(10,12,16,.85));
+  }
+  #copy{
+    width:100%;background:var(--acc);border:0;color:#fff;border-radius:14px;
+    padding:15px;font:16px/1 inherit;font-weight:600;
+  }
+  #copy:active{opacity:.85}
+  .toast{
+    position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(10px);
+    background:#e8ecf3;color:#0a0c10;padding:9px 16px;border-radius:999px;font-size:13px;
+    opacity:0;pointer-events:none;transition:.2s;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>提示词</h1>
+  <p>写一句想画什么，再点几个词，下面自动拼好</p>
+</header>
+
+<main>
+  <section>
+    <div class="label"><span>你想画什么</span><span>必填</span></div>
+    <textarea id="subject" rows="2" placeholder="一个女孩坐在窗边看书"></textarea>
+  </section>
+
+  <div id="groups"></div>
+
+  <section class="out">
+    <div class="outhead">
+      <span>拼好的提示词</span>
+      <div class="seg" id="lang">
+        <button data-l="zh" class="on">中文</button>
+        <button data-l="en">English</button>
+      </div>
+    </div>
+    <pre id="preview">先写一句「你想画什么」…</pre>
+    <div class="row">
+      <button id="rand">🎲 随机</button>
+      <button id="clear">清空</button>
+    </div>
+  </section>
+</main>
+
+<footer><button id="copy">复制提示词</button></footer>
+<div class="toast" id="toast">已复制</div>
+
+<script>
+(function(){
+  var G = [
+    {k:'type', name:'画面类型', items:[
+      ['cinematic film still','电影感剧照'],
+      ['35mm film photo','35mm 胶片照片'],
+      ['editorial photo','杂志大片'],
+      ['studio photo','棚拍照片'],
+      ['anime key visual','动画主视觉'],
+      ['illustration','插画'],
+      ['concept art sheet','概念设定图'],
+      ['product photography','产品摄影']
+    ]},
+    {k:'scene', name:'场景', items:[
+      ['bedroom','卧室'],
+      ['classroom','教室'],
+      ['library','图书馆'],
+      ['cafe','咖啡馆'],
+      ['city street','城市街道'],
+      ['train station','火车站'],
+      ['forest','森林'],
+      ['beach','海滩'],
+      ['rooftop','屋顶'],
+      ['alley','小巷'],
+      ['bookstore','书店'],
+      ['park','公园']
+    ]},
+    {k:'light', name:'光线', items:[
+      ['golden hour','黄金时刻'],
+      ['dusk light','黄昏光线'],
+      ['blue hour','蓝调时刻'],
+      ['window light','窗边光'],
+      ['neon lights','霓虹灯光'],
+      ['soft lighting','柔和光线'],
+      ['hard light','硬光'],
+      ['backlighting','逆光'],
+      ['moonlight','月光'],
+      ['overcast lighting','阴天光线']
+    ]},
+    {k:'lens', name:'镜头', items:[
+      ['85mm lens','85mm 镜头'],
+      ['50mm lens','50mm 镜头'],
+      ['35mm lens','35mm 镜头'],
+      ['shallow depth of field','浅景深'],
+      ['wide angle lens','广角镜头'],
+      ['telephoto lens','长焦镜头'],
+      ['macro lens','微距镜头'],
+      ['film grain','胶片颗粒']
+    ]},
+    {k:'weather', name:'天气 / 时间', items:[
+      ['sunny','晴天'],
+      ['overcast','阴天'],
+      ['rain','下雨'],
+      ['rain-slicked street','雨后街道'],
+      ['snow','白雪'],
+      ['fog','浓雾'],
+      ['night','夜晚'],
+      ['sunset','日落']
+    ]},
+    {k:'mood', name:'氛围', items:[
+      ['quiet','安静'],
+      ['warm','温暖'],
+      ['lonely','孤独'],
+      ['mysterious','神秘'],
+      ['dreamy','梦幻'],
+      ['nostalgic','怀旧'],
+      ['cinematic','电影感'],
+      ['healing','治愈']
+    ]}
+  ];
+
+  var RANDOM_SUBJECTS = [
+    '一个女孩坐在窗边看书',
+    '雨夜里的便利店门口',
+    '一只橘猫趴在木地板上',
+    '咖啡店里靠窗的座位',
+    '放学后的空教室',
+    '海边的一条旧长椅'
+  ];
+
+  var sel = {};
+  var lang = 'zh';
+  var subject = document.getElementById('subject');
+  var preview = document.getElementById('preview');
+  var groupsEl = document.getElementById('groups');
+  var toastEl = document.getElementById('toast');
+
+  try{
+    var saved = JSON.parse(localStorage.getItem('pg_simple') || '{}');
+    if(saved.subject) subject.value = saved.subject;
+    if(saved.sel) sel = saved.sel;
+    if(saved.lang) lang = saved.lang;
+  }catch(e){}
+
+  function item(k){
+    var g = G.filter(function(x){return x.k===k})[0];
+    var i = sel[k];
+    return (i==null || i<0) ? null : g.items[i];
+  }
+
+  function build(){
+    G.forEach(function(g){
+      var wrap = document.createElement('section');
+      var lab = document.createElement('div');
+      lab.className = 'label';
+      lab.innerHTML = '<span>'+g.name+'</span>';
+      var chips = document.createElement('div');
+      chips.className = 'chips';
+      g.items.forEach(function(it, idx){
+        var b = document.createElement('button');
+        b.className = 'chip';
+        b.textContent = it[1];
+        b.dataset.k = g.k;
+        b.dataset.i = idx;
+        if(sel[g.k]===idx) b.classList.add('on');
+        b.addEventListener('click', function(){
+          sel[g.k] = (sel[g.k]===idx) ? -1 : idx;
+          paint();
+        });
+        chips.appendChild(b);
+      });
+      wrap.appendChild(lab); wrap.appendChild(chips);
+      groupsEl.appendChild(wrap);
+    });
+  }
+
+  function paint(){
+    document.querySelectorAll('.chip').forEach(function(b){
+      b.classList.toggle('on', sel[b.dataset.k] === Number(b.dataset.i));
+    });
+    document.querySelectorAll('#lang button').forEach(function(b){
+      b.classList.toggle('on', b.dataset.l === lang);
+    });
+    preview.textContent = compose();
+    save();
+  }
+
+  function compose(){
+    var s = subject.value.trim();
+    var t = item('type'), sc = item('scene'), li = item('light'),
+        ln = item('lens'), w = item('weather'), m = item('mood');
+
+    if(lang === 'zh'){
+      var head = [], tail = [];
+      if(s) head.push(s.replace(/[。.!！]$/,''));
+      if(sc) head.push('场景在' + sc[1]);
+      if(w) head.push(w[1]);
+      if(t) tail.push(t[1]);
+      if(li) tail.push(li[1]);
+      if(ln) tail.push(ln[1]);
+      if(m) tail.push(m[1] + '的情绪');
+      if(!head.length && !tail.length) return '先写一句「你想画什么」…';
+      var out = head.length ? head.join('，') + '。' : '';
+      if(tail.length) out += tail.join('，') + '。';
+      return out;
+    }
+
+    var a = '';
+    if(t) a += t[0].charAt(0).toUpperCase() + t[0].slice(1) + ' of ';
+    a += s || 'a scene';
+    if(sc) a += ', set in ' + sc[0];
+    if(w) a += ', ' + w[0];
+    a += '.';
+    if(li) a += ' Lit by ' + li[0] + '.';
+    if(ln) a += ' Shot with ' + ln[0] + '.';
+    if(m) a += ' The mood is ' + m[0] + '.';
+    return a;
+  }
+
+  function save(){
+    try{
+      localStorage.setItem('pg_simple', JSON.stringify({
+        subject: subject.value, sel: sel, lang: lang
+      }));
+    }catch(e){}
+  }
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ toastEl.classList.remove('show'); }, 1600);
+  }
+
+  subject.addEventListener('input', paint);
+
+  document.getElementById('lang').addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if(!b) return;
+    lang = b.dataset.l;
+    paint();
+  });
+
+  document.getElementById('rand').addEventListener('click', function(){
+    if(!subject.value.trim()){
+      subject.value = RANDOM_SUBJECTS[Math.floor(Math.random()*RANDOM_SUBJECTS.length)];
+    }
+    G.forEach(function(g){
+      sel[g.k] = Math.floor(Math.random()*g.items.length);
+    });
+    paint();
+  });
+
+  document.getElementById('clear').addEventListener('click', function(){
+    sel = {};
+    subject.value = '';
+    paint();
+  });
+
+  document.getElementById('copy').addEventListener('click', function(){
+    var text = preview.textContent;
+    function done(){ toast('已复制'); }
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try{ document.execCommand('copy'); done(); }
+      catch(e){ toast('复制失败，请长按选中'); }
+      document.body.removeChild(ta);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+  });
+
+  build();
+  paint();
+})();
+</script>
+</body>
+</html>

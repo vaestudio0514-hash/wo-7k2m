@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="今天">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1013">
+<title>今天</title>
+<style>
+:root{
+  --bg:#0d1013; --card:#181d22; --ink:#eef1f4; --sub:#828b95;
+  --line:#242b32; --accent:#5ac8fa; --ok:#4cd964; --warm:#ffb86b;
+}
+body.theme2{ --bg:#12100c; --card:#1d1913; --accent:#ffb86b; --ok:#c9d94a; --line:#2c261d; }
+body.theme3{ --bg:#0b1210; --card:#15201c; --accent:#4cd9a0; --ok:#8ee36b; --line:#1f2e28; }
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{
+  color:var(--ink);min-height:100dvh;overflow-x:hidden;
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+  -webkit-text-size-adjust:100%;
+  padding-bottom:calc(30px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 18px) 20px 0}
+
+.hd{display:flex;align-items:center;gap:8px}
+.hd .t{font-size:15px;font-weight:600;letter-spacing:.5px}
+.hd .d{font-size:13px;color:var(--sub);margin-left:auto}
+.theme{
+  width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,.06);
+  color:var(--sub);font-size:15px;display:flex;align-items:center;justify-content:center;
+}
+.theme:active{opacity:.6}
+
+/* 表盘 */
+.dialbox{position:relative;width:min(62vw,240px);margin:26px auto 6px}
+.dialbox svg{width:100%;display:block;transform:rotate(-90deg)}
+.dialbox .track{fill:none;stroke:var(--line);stroke-width:9}
+.dialbox .prog{
+  fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;
+  transition:stroke-dashoffset .5s cubic-bezier(.3,.9,.3,1);
+}
+.dialnum{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+.dialnum b{
+  font-size:64px;font-weight:200;letter-spacing:-3px;line-height:1;
+  font-variant-numeric:tabular-nums;transition:transform .2s;
+}
+.dialnum b.bump{transform:scale(1.12)}
+.dialnum span{font-size:13px;color:var(--sub);margin-top:8px;letter-spacing:2px}
+
+.stats{text-align:center;font-size:13px;color:var(--sub);margin-top:6px}
+.stats b{color:var(--ok);font-weight:600;font-variant-numeric:tabular-nums}
+
+.list{margin-top:26px}
+
+.task{
+  background:var(--card);border-radius:16px;padding:18px 20px;margin-bottom:10px;
+  font-size:17px;font-weight:500;
+  display:flex;align-items:center;gap:12px;
+  transition:transform .42s cubic-bezier(.4,0,.7,0),opacity .42s,height .3s,margin .3s,padding .3s;
+  overflow:hidden;
+  animation:enter .35s ease both;
+}
+@keyframes enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.task .txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task .hint{font-size:12px;color:var(--sub);opacity:.7}
+.task:active{background:#1f252c;transform:scale(.985)}
+
+.task.gone{
+  transform:translateX(110%) scale(.9);opacity:0;
+  height:0;padding-top:0;padding-bottom:0;margin-bottom:0;
+}
+
+.add{
+  width:100%;padding:17px;border-radius:16px;margin-top:6px;
+  border:1.5px dashed var(--line);background:transparent;
+  color:var(--accent);font-size:16px;font-weight:600;
+}
+.add:active{opacity:.6}
+
+.empty{
+  text-align:center;padding:30px 10px 10px;color:var(--sub);font-size:15px;line-height:1.9;
+}
+.empty b{display:block;font-size:19px;color:var(--ink);margin-bottom:6px;font-weight:600}
+
+.undo{
+  position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom));
+  transform:translate(-50%,20px);z-index:60;
+  background:rgba(38,44,50,.97);color:var(--ink);border:none;
+  padding:12px 22px;border-radius:999px;font-size:14px;font-weight:600;
+  opacity:0;pointer-events:none;transition:.22s;
+  box-shadow:0 8px 28px rgba(0,0,0,.5);
+}
+.undo.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+
+/* sheet */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:.2s;z-index:70}
+.mask.on{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:80;background:var(--card);
+  border-radius:20px 20px 0 0;padding:8px 20px calc(18px + env(safe-area-inset-bottom));
+  transform:translateY(102%);transition:transform .28s cubic-bezier(.32,.72,0,1);
+}
+.sheet.on{transform:translateY(0)}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--line);margin:6px auto 16px}
+.sheet input{
+  width:100%;padding:15px;border-radius:14px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink);font-size:17px;outline:none;-webkit-appearance:none;
+}
+.sheet input:focus{border-color:var(--accent)}
+.sheet .row{display:flex;gap:10px;margin-top:12px}
+.sheet button{
+  flex:1;padding:15px;border-radius:14px;border:none;font-size:16px;font-weight:600;
+  background:var(--line);color:var(--ink);
+}
+.sheet button.pri{background:var(--accent);color:#082731}
+.sheet .hint{font-size:12px;color:var(--sub);margin-top:12px;line-height:1.6}
+
+/* 完成动画 */
+.spark{
+  position:fixed;pointer-events:none;z-index:90;
+  width:10px;height:10px;border-radius:50%;background:var(--ok);
+  animation:spark .7s ease-out forwards;
+}
+@keyframes spark{
+  0%{opacity:1;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.2)}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="hd">
+    <div class="t">今天</div>
+    <div class="d" id="date"></div>
+    <button class="theme" id="theme">◐</button>
+  </div>
+
+  <div class="dialbox">
+    <svg viewBox="0 0 120 120">
+      <circle class="track" cx="60" cy="60" r="52"></circle>
+      <circle class="prog" id="prog" cx="60" cy="60" r="52"></circle>
+    </svg>
+    <div class="dialnum">
+      <b id="left">0</b>
+      <span>还剩</span>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="list" id="list"></div>
+  <button class="add" id="add">＋ 加一件</button>
+</div>
+
+<button class="undo" id="undo">↩ 撤销</button>
+<div class="mask" id="mask"></div>
+<div class="sheet" id="sheet"></div>
+
+<script>
+(function(){
+'use strict';
+
+var KEY = 'today.v1';
+var S = null, lastDone = null, undoTimer = null, ac = null;
+
+function $(id){ return document.getElementById(id); }
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function today(){
+  var d = new Date();
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+function cn(){
+  var d = new Date(), w = ['日','一','二','三','四','五','六'][d.getDay()];
+  return (d.getMonth()+1)+'月'+d.getDate()+'日 周'+w;
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+/* ---------- 数据 ---------- */
+function seed(){ return { v:1, date: today(), done:0, theme:0, items:[] }; }
+
+function load(){
+  var s;
+  try {
+    var raw = localStorage.getItem(KEY);
+    s = raw ? JSON.parse(raw) : seed();
+  } catch(e){ s = seed(); }
+  if (!s || !Array.isArray(s.items)) s = seed();
+  if (typeof s.done !== 'number') s.done = 0;
+  if (typeof s.theme !== 'number') s.theme = 0;
+  s.items = s.items.filter(function(i){ return i && i.id; });
+  return s;
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+function rollover(){
+  var t = today();
+  if (S.date === t) return false;
+  S.date = t;
+  S.done = 0;
+  if (S.items.length > 7) S.items = S.items.slice(0, 7);
+  save();
+  return true;
+}
+
+/* ---------- 声音 ---------- */
+var SCALE = [523, 587, 659, 698, 784, 880, 988, 1046];
+function ctx(){
+  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === 'suspended') ac.resume();
+  return ac;
+}
+function blip(freq, dur, vol){
+  try {
+    var a = ctx(), t = a.currentTime;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol||0.1, t+0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+(dur||0.25));
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t+(dur||0.25)+0.03);
+  } catch(e){}
+}
+function chord(){
+  [523,659,784,1046].forEach(function(f,i){ setTimeout(function(){ blip(f,.5,.07); }, i*70); });
+}
+
+/* ---------- 渲染 ---------- */
+function render(){
+  $('date').textContent = cn();
+  var left = S.items.length;
+  var total = left + S.done;
+  var pct = total ? (S.done / total) : 0;
+
+  var C = 2 * Math.PI * 52;
+  var prog = $('prog');
+  prog.style.strokeDasharray = C;
+  prog.style.strokeDashoffset = C * (1 - pct);
+
+  var lb = $('left');
+  lb.textContent = left;
+
+  $('stats').innerHTML = S.done > 0
+    ? ('今天已经划掉 <b>' + S.done + '</b> 件')
+    : (left > 0 ? '点一下，它就消失' : '');
+
+  var o = '';
+  if (!S.items.length){
+    o = '<div class="empty"><b>空了</b>' +
+        (S.done > 0 ? '今天做的事，都在这儿划掉了。' : '加一件，只加一件。') + '</div>';
+  } else {
+    S.items.forEach(function(it){
+      o += '<div class="task" data-id="'+it.id+'">' +
+           '<span class="txt">'+esc(it.title)+'</span>' +
+           '<span class="hint">划掉</span></div>';
+    });
+    if (S.items.length > 7){
+      o += '<div class="empty" style="padding:14px 10px 0;font-size:13px">' +
+           '今天放得有点多，先做前三件就行。</div>';
+    }
+  }
+  $('list').innerHTML = o;
+}
+
+/* ---------- 完成 ---------- */
+function complete(el, id){
+  var item = S.items.filter(function(i){ return i.id===id; })[0];
+  if (!item) return;
+
+  var r = el.getBoundingClientRect();
+  sparks(r.left + 40, r.top + r.height/2);
+  blip(SCALE[Math.min(S.done, SCALE.length-1)], .28, .11);
+
+  el.classList.add('gone');
+
+  S.items = S.items.filter(function(i){ return i.id!==id; });
+  S.done++;
+  save();
+
+  lastDone = item;
+  showUndo();
+
+  setTimeout(function(){
+    render();
+    if (!S.items.length && S.done > 0) chord();
+  }, 430);
+}
+
+function sparks(x, y){
+  for (var i=0;i<7;i++){
+    var s = document.createElement('div');
+    s.className = 'spark';
+    s.style.left = x + 'px';
+    s.style.top = y + 'px';
+    var a = Math.random()*Math.PI*2, d = 30 + Math.random()*45;
+    s.style.setProperty('--dx', Math.cos(a)*d + 'px');
+    s.style.setProperty('--dy', Math.sin(a)*d + 'px');
+    document.body.appendChild(s);
+    (function(el){ setTimeout(function(){ el.remove(); }, 720); })(s);
+  }
+}
+
+function showUndo(){
+  var u = $('undo');
+  clearTimeout(undoTimer);
+  u.classList.add('on');
+  undoTimer = setTimeout(function(){ u.classList.remove('on'); }, 4000);
+}
+
+$('undo').addEventListener('click', function(){
+  if (!lastDone) return;
+  S.items.unshift(lastDone);
+  S.done = Math.max(0, S.done - 1);
+  lastDone = null;
+  save(); render();
+  $('undo').classList.remove('on');
+});
+
+/* ---------- 添加 ---------- */
+function openAdd(){
+  $('sheet').innerHTML =
+    '<div class="grab"></div>' +
+    '<input id="inp" placeholder="加一件，越具体越好" autocomplete="off">' +
+    '<div class="row"><button id="cancel">取消</button>' +
+    '<button class="pri" id="ok">加上</button></div>' +
+    '<div class="hint">加上之后它就在表盘里占一个数。做完了点它，它会消失。</div>';
+  $('mask').classList.add('on');
+  $('sheet').classList.add('on');
+  $('cancel').onclick = closeAdd;
+  $('ok').onclick = commitAdd;
+  $('inp').addEventListener('keydown', function(e){ if (e.key === 'Enter') commitAdd(); });
+  setTimeout(function(){ try{ $('inp').focus(); }catch(e){} }, 300);
+}
+function closeAdd(){
+  $('mask').classList.remove('on');
+  $('sheet').classList.remove('on');
+  setTimeout(function(){ $('sheet').innerHTML=''; }, 260);
+}
+function commitAdd(){
+  var v = $('inp').value.trim();
+  if (!v){ return; }
+  S.items.push({ id: uid(), title: v });
+  save(); closeAdd(); render();
+}
+
+/* ---------- 事件 ---------- */
+$('list').addEventListener('click', function(e){
+  var el = e.target.closest('.task');
+  if (!el) return;
+  complete(el, el.dataset.id);
+});
+
+$('add').addEventListener('click', openAdd);
+$('mask').addEventListener('click', closeAdd);
+
+$('theme').addEventListener('click', function(){
+  S.theme = (S.theme + 1) % 3;
+  applyTheme();
+  save();
+});
+function applyTheme(){
+  document.body.className = S.theme ? ('theme' + (S.theme+1)) : '';
+}
+
+/* ---------- 启动 ---------- */
+S = load();
+rollover();
+save();
+applyTheme();
+render();
+
+setInterval(function(){ if (rollover()) render(); }, 30000);
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden && rollover()) render();
+});
+
+if ('serviceWorker' in navigator && location.protocol === 'http:'){
+  navigator.serviceWorker.register('./sw.js').catch(function(){});
+}
+})();
+</script>
+</body>
+</html>

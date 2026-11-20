@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="缓一缓">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e1114">
+<title>缓一缓</title>
+<style>
+:root{
+  --bg:#0e1114; --card:#171b20; --ink:#eef1f4; --sub:#8b949e;
+  --line:#232a31; --accent:#5ac8fa; --warm:#ffb86b; --ok:#4cd964;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{
+  color:var(--ink);min-height:100dvh;
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+  -webkit-text-size-adjust:100%;overflow-x:hidden;
+}
+.wrap{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 22px) 22px calc(28px + env(safe-area-inset-bottom))}
+
+.fade{animation:fade .5s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.eyebrow{font-size:12px;letter-spacing:2.5px;color:var(--sub);margin-bottom:10px}
+h1{font-size:29px;font-weight:700;letter-spacing:-.6px;margin:0 0 10px}
+.lead{font-size:14px;color:var(--sub);line-height:1.7;margin:0 0 26px}
+
+.card{
+  background:var(--card);border-radius:18px;padding:20px;margin-bottom:11px;
+  border:1px solid var(--line);
+}
+.card .t{font-size:18px;font-weight:600;margin-bottom:5px}
+.card .d{font-size:13px;color:var(--sub);line-height:1.55}
+.card .m{font-size:12px;color:var(--accent);margin-top:10px;letter-spacing:.5px}
+.card:active{transform:scale(.985);background:#1b2026}
+
+.mini{font-size:12px;color:var(--sub);text-align:center;margin-top:6px;padding:10px}
+.mini:active{opacity:.6}
+
+.note{
+  margin-top:26px;font-size:12.5px;color:var(--sub);line-height:1.75;
+  border-top:1px solid var(--line);padding-top:18px;
+}
+.note b{color:#c9d1d9;font-weight:600}
+
+/* 工具舞台 */
+#stage{position:fixed;inset:0;z-index:50;background:var(--bg);display:none;overflow:hidden}
+#stage.on{display:block}
+.closebtn{
+  position:absolute;top:calc(env(safe-area-inset-top) + 10px);right:16px;z-index:60;
+  width:40px;height:40px;border-radius:50%;border:none;
+  background:rgba(255,255,255,.08);color:var(--ink);font-size:19px;
+  display:flex;align-items:center;justify-content:center;
+}
+.closebtn:active{opacity:.6}
+.stage-in{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px}
+
+.bignum{font-size:64px;font-weight:200;font-variant-numeric:tabular-nums;letter-spacing:-2px}
+.mid{font-size:19px;font-weight:600;margin-top:8px}
+.small{font-size:13px;color:var(--sub);margin-top:8px;text-align:center;line-height:1.6}
+
+/* 呼吸圆 */
+.breathcircle{
+  width:min(66vw,260px);height:min(66vw,260px);border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, rgba(90,200,250,.28), rgba(90,200,250,.04) 70%);
+  border:1px solid rgba(90,200,250,.35);
+  transform:scale(.72);transition:transform 4s cubic-bezier(.4,0,.5,1);
+}
+.breathcircle.in{transform:scale(1.06)}
+.breathcircle.out{transform:scale(.72);transition-duration:6s}
+
+/* 触摸跟随 */
+#touchpad{position:absolute;inset:0}
+.dotball{
+  position:absolute;width:74px;height:74px;border-radius:50%;
+  background:radial-gradient(circle, rgba(90,200,250,.9), rgba(90,200,250,.15) 70%);
+  transform:translate(-50%,-50%);pointer-events:none;
+  box-shadow:0 0 40px rgba(90,200,250,.45);
+}
+.dotball.hold{background:radial-gradient(circle, rgba(76,217,100,.95), rgba(76,217,100,.15) 70%);
+  box-shadow:0 0 50px rgba(76,217,100,.5)}
+.progressline{height:3px;background:var(--line);border-radius:2px;overflow:hidden;width:70%;margin-top:26px}
+.progressline>i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+
+/* 声音 */
+.wavebars{display:flex;gap:6px;align-items:flex-end;height:70px;margin:18px 0}
+.wavebars i{width:5px;border-radius:3px;background:var(--accent);opacity:.25;height:8px}
+.wavebars.run i{animation:wave 1.4s ease-in-out infinite;opacity:.8}
+@keyframes wave{0%,100%{height:8px}50%{height:58px}}
+.wavebars i:nth-child(2n){animation-delay:.2s}
+.wavebars i:nth-child(3n){animation-delay:.4s}
+.wavebars i:nth-child(4n){animation-delay:.6s}
+
+/* 折起来 */
+.foldbox textarea{
+  width:100%;min-height:110px;border-radius:14px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);padding:14px;font-size:16px;
+  font-family:inherit;outline:none;resize:none;
+}
+.foldbox textarea:focus{border-color:var(--accent)}
+.paper{
+  background:#22282f;border-radius:8px;padding:16px;margin-top:14px;
+  font-size:15px;color:#aeb8c2;word-break:break-all;
+}
+.paper.fly{animation:fly .75s cubic-bezier(.5,0,.75,0) forwards}
+@keyframes fly{
+  0%{transform:scale(1) rotate(0);opacity:1}
+  100%{transform:scale(.06) rotate(-14deg) translateY(120px);opacity:0}
+}
+
+.btn{
+  width:100%;padding:16px;border-radius:15px;border:none;font-size:16px;font-weight:600;
+  background:var(--accent);color:#04222e;margin-top:16px;
+}
+.btn:active{transform:scale(.98)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.35}
+
+/* 节拍 */
+.beatring{
+  width:min(56vw,210px);height:min(56vw,210px);border-radius:50%;
+  border:2px solid rgba(90,200,250,.4);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .12s,border-color .12s;
+}
+.beatring.hit{transform:scale(1.06);border-color:var(--ok)}
+
+/* 结束页 */
+.donewrap{text-align:center;padding:20px}
+.donewrap .big{font-size:46px;margin-bottom:14px}
+.donewrap .q{font-size:20px;font-weight:600;line-height:1.6;margin-bottom:10px}
+.donewrap .s{font-size:14px;color:var(--sub);line-height:1.8}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="home"></div>
+<div id="stage"></div>
+
+<script>
+(function(){
+'use strict';
+
+var TOOLS = [
+  { id:'breath', t:'呼吸', d:'跟着圆圈，4 秒吸、6 秒呼', m:'约 1 分半' },
+  { id:'land',   t:'五感着陆', d:'一样一样，说出周围真实存在的东西', m:'约 2 分钟' },
+  { id:'touch',  t:'跟着手', d:'手指按住光点，让它带你慢慢走', m:'45 秒' },
+  { id:'rain',   t:'雨声', d:'只听着，什么都不用做', m:'3 分钟' },
+  { id:'fold',   t:'折起来', d:'写一句，折好放到一边', m:'1 分钟' },
+  { id:'knock',  t:'跟着敲', d:'跟着节拍轻点屏幕', m:'30 秒' }
+];
+
+var ENCOURAGE = [
+  '刚才那件事还在，但你已经不在那个画面里了。',
+  '你没有把它赶走，你只是先松了一下手。',
+  '这两分钟是你的，不是它的。',
+  '注意力回来过一次，就能回来第二次。',
+  '不用想明白，先让身体松一点。',
+  '你做到的不是"想通"，是"停下来"。',
+  '现在脚底踩着的，是今天的地板。',
+  '念头会再来，但你有别的去处了。'
+];
+
+var $ = function(id){ return document.getElementById(id); };
+var stage = null, stopFn = null, ac = null;
+
+/* ---------- 声音 ---------- */
+function ctx(){
+  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === 'suspended') ac.resume();
+  return ac;
+}
+function tone(freq, dur, vol, type, delay){
+  try {
+    var a = ctx(), t = a.currentTime + (delay||0);
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol||0.08, t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t+dur+0.03);
+  } catch(e){}
+}
+function chime(){
+  tone(523,.35,.07,'sine',0);
+  tone(659,.35,.06,'sine',.1);
+  tone(784,.5,.06,'sine',.22);
+}
+
+function noiseBuffer(a, brown){
+  var len = a.sampleRate * 2, buf = a.createBuffer(1, len, a.sampleRate);
+  var d = buf.getChannelData(0), last = 0;
+  for (var i=0;i<len;i++){
+    var w = Math.random()*2-1;
+    if (brown){ last = (last + 0.02*w)/1.02; d[i] = last*3.2; }
+    else d[i] = w*0.42;
+  }
+  return buf;
+}
+
+/* ---------- 每日三样 ---------- */
+function dayHash(){
+  var s = new Date().toISOString().slice(0,10), h = 0;
+  for (var i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+var pickSalt = 0;
+
+function todayPicks(){
+  var list = TOOLS.slice();
+  var h = dayHash() + pickSalt*7919;
+  for (var i=list.length-1;i>0;i--){
+    h = (h*1103515245 + 12345) & 0x7fffffff;
+    var j = h % (i+1);
+    var tmp = list[i]; list[i] = list[j]; list[j] = tmp;
+  }
+  return list.slice(0,3);
+}
+
+/* ---------- 首页 ---------- */
+function renderHome(){
+  var picks = todayPicks();
+  var o = '<div class="fade">';
+  o += '<div class="eyebrow">缓一缓</div>';
+  o += '<h1>先不看那件事</h1>';
+  o += '<p class="lead">不用赶走它，也不用想明白。<br>挑一样，做两分钟别的。</p>';
+  picks.forEach(function(t){
+    o += '<div class="card" data-tool="'+t.id+'">'+
+      '<div class="t">'+t.t+'</div><div class="d">'+t.d+'</div>'+
+      '<div class="m">'+t.m+'</div></div>';
+  });
+  o += '<div class="mini" data-act="reroll">换一换</div>';
+  o += '<div class="note"><b>这不是治疗。</b>你要的不是"确认没被碰到"——那个确认永远不够用。'+
+       '这里做的事很简单：把注意力从画面里拉回到身体。<br><br>'+
+       '如果这种念头越来越频繁、越来越影响你生活，那不是性格问题，'+
+       '是可以被处理的，去看精神科或心理科是正经办法。</div>';
+  o += '</div>';
+  $('home').innerHTML = o;
+  $('home').style.display = '';
+  $('stage').classList.remove('on');
+  stage = null;
+}
+
+/* ---------- 工具容器 ---------- */
+function openTool(id){
+  if (stopFn){ try{ stopFn(); }catch(e){} stopFn = null; }
+  $('home').style.display = 'none';
+  var st = $('stage');
+  st.classList.add('on');
+  st.innerHTML = '<button class="closebtn" id="cbtn">✕</button><div class="stage-in" id="inner"></div>';
+  stage = $('inner');
+  $('cbtn').onclick = closeTool;
+
+  var fn = TOOL_IMPL[id];
+  if (fn) stopFn = fn();
+}
+
+function closeTool(){
+  if (stopFn){ try{ stopFn(); }catch(e){} stopFn = null; }
+  $('stage').classList.remove('on');
+  $('stage').innerHTML = '';
+  $('home').style.display = '';
+  stage = null;
+}
+
+function doneView(msg, sub){
+  var o = '<div class="donewrap fade">';
+  o += '<div class="big">🌿</div>';
+  o += '<div class="q">'+(msg || ENCOURAGE[Math.floor(Math.random()*ENCOURAGE.length)])+'</div>';
+  o += '<div class="s">'+(sub || '现在抬头看一下，周围有哪三样东西是真的。')+'</div>';
+  o += '</div>';
+  o += '<button class="btn ghost" id="backbtn" style="margin-top:26px">回去</button>';
+  $('inner').innerHTML = o;
+  $('backbtn').onclick = closeTool;
+  chime();
+}
+
+/* ---------- 1. 呼吸 ---------- */
+function implBreath(){
+  var inner = $('inner');
+  inner.innerHTML =
+    '<div class="breathcircle" id="bc"></div>' +
+    '<div class="mid" id="bphase" style="margin-top:34px">准备好</div>' +
+    '<div class="small" id="bcount">跟着圆圈就好</div>';
+
+  var bc = $('bc'), phase = $('bphase'), cnt = $('bcount');
+  var rounds = 8, n = 0, dead = false, timer = null;
+
+  function step(){
+    if (dead) return;
+    if (n >= rounds){ finish(); return; }
+    n++;
+    phase.textContent = '吸气';
+    bc.classList.remove('out'); bc.classList.add('in');
+    tone(392, .5, .05);
+    timer = setTimeout(function(){
+      if (dead) return;
+      phase.textContent = '呼气';
+      bc.classList.remove('in'); bc.classList.add('out');
+      tone(294, .7, .045);
+      cnt.textContent = '第 ' + n + ' / ' + rounds + ' 次';
+      timer = setTimeout(step, 6000);
+    }, 4000);
+  }
+  function finish(){
+    dead = true;
+    doneView('八次呼吸，做完了。', '胸腔松一点了吗？没松也没关系，你已经坐了这么久。');
+  }
+  timer = setTimeout(step, 500);
+
+  return function(){ dead = true; clearTimeout(timer); };
+}
+
+/* ---------- 2. 五感着陆 ---------- */
+function implLand(){
+  var STEPS = [
+    { n:5, v:'看见', h:'颜色、形状、光、边角' },
+    { n:4, v:'摸到', h:'衣服、桌面、手机的外壳' },
+    { n:3, v:'听到', h:'空调、远处、你自己的呼吸' },
+    { n:2, v:'闻到', h:'空气、衣服上、房间的味道' },
+    { n:1, v:'尝到', h:'嘴里的味道，或者咽一口口水' }
+  ];
+  var inner = $('inner');
+  var si = 0, got = 0, dead = false;
+
+  function draw(){
+    var s = STEPS[si];
+    inner.innerHTML =
+      '<div class="bignum">'+(s.n - got)+'</div>' +
+      '<div class="mid">'+s.v+'</div>' +
+      '<div class="small">'+s.h+'</div>' +
+      '<button class="btn" id="got" style="max-width:260px;margin-top:30px">找到了</button>' +
+      '<div class="small" style="margin-top:16px">第 '+(si+1)+' / '+STEPS.length+' 组</div>';
+    $('got').onclick = function(){
+      tone(520 + got*40, .09, .06);
+      got++;
+      if (got >= s.n){
+        si++; got = 0;
+        if (si >= STEPS.length){
+          doneView('五样、四样、三样，全找完了。', '刚才那两分钟，你在房间里，不在那个画面里。');
+          return;
+        }
+        setTimeout(draw, 320);
+      } else draw();
+    };
+  }
+  draw();
+  return function(){ dead = true; };
+}
+
+/* ---------- 3. 跟着手 ---------- */
+function implTouch(){
+  var host = $('stage');
+  var DUR = 45000, TOL = 95;
+  var ball = document.createElement('div');
+  ball.className = 'dotball';
+  host.appendChild(ball);
+
+  $('inner').innerHTML =
+    '<div class="mid">按住那个光点</div>' +
+    '<div class="small">它会慢慢飘，跟着它走</div>' +
+    '<div class="progressline"><i id="pl"></i></div>';
+  var pl = $('pl');
+
+  var x = window.innerWidth/2, y = window.innerHeight/2, t = 0, prog = 0;
+  var holding = false, downX = 0, downY = 0, last = performance.now(), raf = 0, dead = false;
+
+  function onDown(e){
+    var btn = e.target.closest && e.target.closest('.closebtn');
+    if (btn) return;
+    holding = true;
+    downX = e.clientX; downY = e.clientY;
+  }
+  function onMove(e){
+    if (!holding) return;
+    downX = e.clientX; downY = e.clientY;
+  }
+  function onUp(){ holding = false; }
+
+  host.addEventListener('pointerdown', onDown);
+  host.addEventListener('pointermove', onMove);
+  host.addEventListener('pointerup', onUp);
+  host.addEventListener('pointercancel', onUp);
+
+  function loop(now){
+    if (dead) return;
+    var dt = Math.min(64, now - last); last = now;
+    t += dt/1000;
+
+    var W = window.innerWidth, H = window.innerHeight;
+    var nx = W/2 + Math.sin(t*0.55) * W*0.26;
+    var ny = H/2 + Math.cos(t*0.41) * H*0.17;
+    x += (nx - x) * 0.055; y += (ny - y) * 0.055;
+
+    ball.style.left = x + 'px';
+    ball.style.top = y + 'px';
+
+    var near = holding && Math.hypot(downX - x, downY - y) < TOL;
+    ball.classList.toggle('hold', near);
+    if (near){
+      prog += dt;
+      pl.style.width = Math.min(100, prog/DUR*100) + '%';
+    }
+    if (prog >= DUR){
+      dead = true;
+      ball.remove();
+      doneView('跟完了，手是稳的。', '刚才那会儿，你只顾着跟它走，没空想别的。');
+      return;
+    }
+    raf = requestAnimationFrame(loop);
+  }
+  raf = requestAnimationFrame(loop);
+
+  return function(){
+    dead = true;
+    cancelAnimationFrame(raf);
+    host.removeEventListener('pointerdown', onDown);
+    host.removeEventListener('pointermove', onMove);
+    host.removeEventListener('pointerup', onUp);
+    host.removeEventListener('pointercancel', onUp);
+    ball.remove();
+  };
+}
+
+/* ---------- 4. 雨声 ---------- */
+function implRain(){
+  var inner = $('inner');
+  inner.innerHTML =
+    '<div class="wavebars" id="wb">' +
+      '<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>' +
+    '</div>' +
+    '<div class="mid" id="rtime">3:00</div>' +
+    '<div class="small">只听着，什么都不用做</div>' +
+    '<button class="btn" id="toggle" style="max-width:220px;margin-top:26px">暂停</button>' +
+    '<button class="btn ghost" id="short" style="max-width:220px;margin-top:10px;padding:13px">只来 1 分钟</button>';
+
+  var a = ctx();
+  var src = a.createBufferSource();
+  src.buffer = noiseBuffer(a, false);
+  src.loop = true;
+
+  var lp = a.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 1400;
+
+  var hp = a.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.value = 180;
+
+  var g = a.createGain(); g.gain.value = 0.16;
+  src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(a.destination);
+  src.start();
+
+  var wb = $('wb'); wb.classList.add('run');
+  var left = 180, playing = true, dead = false;
+  var tm = $('rtime'), btn = $('toggle');
+
+  function fmt(s){ return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+  tm.textContent = fmt(left);
+
+  var iv = setInterval(function(){
+    if (dead || !playing) return;
+    left--;
+    tm.textContent = fmt(Math.max(0,left));
+    if (left <= 0){
+      clearInterval(iv);
+      try { src.stop(); } catch(e){}
+      doneView('三分钟到了。', '雨停了。抬头看看，现在是什么时间、在什么地方。');
+    }
+  }, 1000);
+
+  if ($('short')) $('short').onclick = function(){
+    left = 60; tm.textContent = fmt(left);
+    if ($('short')) $('short').style.display = 'none';
+  };
+
+  btn.onclick = function(){
+    playing = !playing;
+    g.gain.value = playing ? 0.16 : 0;
+    wb.classList.toggle('run', playing);
+    btn.textContent = playing ? '暂停' : '继续';
+  };
+
+  return function(){
+    dead = true; clearInterval(iv);
+    try { src.stop(); } catch(e){}
+    try { g.disconnect(); } catch(e){}
+  };
+}
+
+/* ---------- 5. 折起来 ---------- */
+function implFold(){
+  var inner = $('inner');
+  inner.innerHTML =
+    '<div class="mid" style="margin-bottom:8px">写一句就够</div>' +
+    '<div class="small" style="margin-bottom:18px">不用写清楚，写下来是为了放下</div>' +
+    '<div class="foldbox"><textarea id="ftext" placeholder="刚才那个瞬间……"></textarea></div>' +
+    '<button class="btn" id="fgo" disabled>折起来，放到一边</button>' +
+    '<div class="small" style="margin-top:14px">写的内容不会被保存，也不会再显示给你</div>';
+
+  var ta = $('ftext'), go = $('fgo');
+  ta.oninput = function(){ go.disabled = !ta.value.trim(); };
+
+  go.onclick = function(){
+    var txt = ta.value.trim();
+    if (!txt) return;
+    inner.innerHTML = '<div class="paper" id="paper"></div>';
+    var p = $('paper');
+    p.textContent = txt;
+    tone(440,.25,.06,'sine',0);
+    setTimeout(function(){
+      p.classList.add('fly');
+      tone(330,.3,.05,'sine',.1);
+    }, 500);
+    setTimeout(function(){
+      doneView('折好了，放在抽屉里。', '它没有消失，但你现在不用一直拿着它。');
+    }, 1300);
+  };
+
+  setTimeout(function(){ try{ ta.focus(); }catch(e){} }, 300);
+  return function(){};
+}
+
+/* ---------- 6. 跟着敲 ---------- */
+function implKnock(){
+  var inner = $('inner');
+  inner.innerHTML =
+    '<div class="mid" style="margin-bottom:20px">跟着圆圈的呼吸点</div>' +
+    '<div class="beatring" id="br"><div class="small" id="kt">0</div></div>' +
+    '<div class="small" style="margin-top:24px">轻点屏幕上的圆</div>';
+
+  var br = $('br'), kt = $('kt');
+  var hits = 0, dead = false, beats = 660;
+
+  var iv = setInterval(function(){
+    if (dead) return;
+    br.classList.add('hit');
+    tone(beats, .08, .05);
+    setTimeout(function(){ br.classList.remove('hit'); }, 120);
+  }, 1000);
+
+  br.addEventListener('pointerdown', function(){
+    if (dead) return;
+    hits++;
+    kt.textContent = hits;
+    tone(880, .09, .07);
+    br.style.transform = 'scale(.95)';
+    setTimeout(function(){ br.style.transform = ''; }, 90);
+  });
+
+  var end = setTimeout(function(){
+    if (dead) return;
+    doneView('敲了 ' + hits + ' 下。', '手在动的时候，脑子安静一点，这很正常。');
+  }, 30000);
+
+  return function(){ dead = true; clearInterval(iv); clearTimeout(end); };
+}
+
+var TOOL_IMPL = {
+  breath: implBreath, land: implLand, touch: implTouch,
+  rain: implRain, fold: implFold, knock: implKnock
+};
+
+/* ---------- 事件 ---------- */
+$('home').addEventListener('click', function(e){
+  var el = e.target.closest('[data-tool]');
+  if (el){ openTool(el.dataset.tool); return; }
+  if (e.target.closest('[data-act="reroll"]')){
+    pickSalt++;
+    renderHome();
+  }
+});
+
+/* ---------- 启动 ---------- */
+renderHome();
+
+if ('serviceWorker' in navigator && location.protocol === 'http:'){
+  navigator.serviceWorker.register('./sw.js').catch(function(){});
+}
+})();
+</script>
+</body>
+</html>

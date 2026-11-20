@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="出门确认">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111114">
+<title>出门确认</title>
+<style>
+:root{
+  --bg:#111114; --card:#1c1c20; --ink:#f5f5f7; --sub:#8e8e93;
+  --line:#2a2a30; --accent:#0a84ff; --ok:#30d158; --red:#ff453a;
+  --gold:#c9a227;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg)}
+body{
+  color:var(--ink);
+  font:15px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+  min-height:100dvh;
+  padding-bottom:calc(96px + env(safe-area-inset-bottom));
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 20px 20px}
+
+.screen{animation:fadeUp .4s cubic-bezier(.2,.8,.3,1) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes stampIn{
+  0%{transform:scale(2.4) rotate(-16deg);opacity:0}
+  55%{transform:scale(.92) rotate(-8deg);opacity:1}
+  75%{transform:scale(1.03) rotate(-8deg)}
+  100%{transform:scale(1) rotate(-8deg);opacity:1}
+}
+@keyframes glow{0%,100%{opacity:.35}50%{opacity:.7}}
+
+/* 步骤指示 */
+.steps{display:flex;align-items:center;gap:8px;margin-bottom:26px}
+.steps i{
+  height:3px;border-radius:2px;background:var(--line);flex:1;transition:.4s;
+}
+.steps i.on{background:var(--accent)}
+.steps i.cur{background:var(--ink)}
+
+.eyebrow{font-size:12px;letter-spacing:2px;color:var(--sub);text-transform:uppercase;margin-bottom:8px}
+.h1{font-size:30px;font-weight:700;letter-spacing:-.8px;margin:0 0 6px}
+.h2{font-size:14px;color:var(--sub);margin:0 0 26px;line-height:1.5}
+
+.item{
+  display:flex;align-items:center;gap:15px;
+  padding:17px 18px;border-radius:16px;background:var(--card);
+  margin-bottom:9px;border:1.5px solid transparent;
+  transition:transform .12s,border-color .2s,background .2s;
+}
+.item:active{transform:scale(.985)}
+.item.on{border-color:var(--ok);background:rgba(48,209,88,.08)}
+.item .circ{
+  width:30px;height:30px;border-radius:50%;flex:0 0 auto;
+  border:2px solid #3a3a42;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:15px;transition:.2s;
+}
+.item.on .circ{background:var(--ok);border-color:var(--ok);transform:scale(1.05)}
+.item .nm{flex:1;font-size:17px;font-weight:500}
+.item.on .nm{color:var(--sub)}
+.item .tm{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.item.on .tm{color:var(--ok)}
+
+/* 按住确认的反馈 */
+.item{position:relative;overflow:hidden;-webkit-user-select:none;user-select:none}
+.item.pressing{background:#26262c}
+.item.pressing .circ{border-color:var(--accent);transform:scale(1.1)}
+.item.pressing::after{
+  content:'';position:absolute;left:0;bottom:0;height:3px;width:0;
+  background:var(--accent);animation:fillbar .45s linear forwards;
+}
+@keyframes fillbar{to{width:100%}}
+.item.pop .circ{animation:pop .34s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop{0%{transform:scale(.55)}55%{transform:scale(1.3)}100%{transform:scale(1)}}
+.item.pop{animation:flash .45s ease}
+@keyframes flash{0%{background:rgba(48,209,88,.3)}100%{background:rgba(48,209,88,.08)}}
+
+.sndbtn{
+  position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:16px;z-index:35;
+  width:38px;height:38px;border-radius:50%;border:none;
+  background:rgba(255,255,255,.09);color:var(--ink);font-size:17px;
+  display:flex;align-items:center;justify-content:center;
+}
+.sndbtn:active{opacity:.6}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));
+  transform:translate(-50%,10px);z-index:60;
+  background:rgba(40,40,46,.96);color:var(--ink);
+  padding:11px 18px;border-radius:999px;font-size:14px;
+  opacity:0;pointer-events:none;transition:.22s;white-space:nowrap;
+  box-shadow:0 6px 24px rgba(0,0,0,.4);
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+.btnrow{position:fixed;left:0;right:0;bottom:0;padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top,var(--bg) 62%,transparent);z-index:30}
+.bigbtn{
+  width:100%;padding:18px;border-radius:16px;border:none;
+  font-size:17px;font-weight:700;color:#fff;background:var(--accent);
+  box-shadow:0 8px 26px rgba(10,132,255,.3);
+}
+.bigbtn:disabled{background:#26262c;color:#5c5c66;box-shadow:none}
+.bigbtn:active:not(:disabled){transform:scale(.985)}
+.bigbtn.gold{background:var(--gold);color:#1a1400;box-shadow:0 8px 26px rgba(201,162,39,.3)}
+
+/* 拍照 */
+.shootbox{
+  border:2px dashed var(--line);border-radius:18px;padding:34px 20px;
+  text-align:center;margin-bottom:16px;background:var(--card);
+}
+.shootbox:active{opacity:.7}
+.shootbox .cam{font-size:40px;margin-bottom:10px}
+.shootbox .t{font-size:16px;font-weight:600}
+.shootbox .s{font-size:13px;color:var(--sub);margin-top:6px}
+.preview{width:100%;border-radius:18px;overflow:hidden;margin-bottom:16px;background:var(--card)}
+.preview img{width:100%;display:block;max-height:52vh;object-fit:cover}
+.skip{display:block;text-align:center;font-size:13px;color:var(--sub);margin-top:14px;padding:8px}
+.skip:active{opacity:.6}
+
+/* 封存页 */
+.sealpage{text-align:center;padding-top:28px;animation:fadeUp .5s ease both}
+.stamp{
+  display:inline-block;border:4px solid var(--red);color:var(--red);
+  border-radius:14px;padding:14px 22px;font-size:30px;font-weight:800;letter-spacing:6px;
+  transform:rotate(-8deg);
+  animation:stampIn .7s cubic-bezier(.2,.8,.3,1) both;
+  opacity:.92;
+}
+.seal-no{
+  margin-top:26px;font-size:13px;letter-spacing:2px;color:var(--sub);
+  font-variant-numeric:tabular-nums;
+}
+.seal-time{font-size:15px;color:var(--ink);margin-top:6px}
+.seal-count{font-size:14px;color:var(--sub);margin-top:22px}
+.cd{
+  font-size:40px;font-weight:700;letter-spacing:-1px;margin:18px 0 6px;
+  font-variant-numeric:tabular-nums;color:var(--gold);
+}
+.cdsub{font-size:13px;color:var(--sub)}
+.seal-note{
+  margin-top:34px;font-size:14px;line-height:1.75;color:var(--sub);
+  border-top:.5px solid var(--line);padding-top:22px;
+}
+.seal-note b{color:var(--ink);font-weight:600}
+
+/* 记录页 */
+.rec-head{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.rec-badge{
+  width:46px;height:46px;border-radius:50%;background:var(--ok);color:#0b1a0f;
+  display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;
+  flex:0 0 auto;
+}
+.mini{font-size:13px;color:var(--sub)}
+.grid-item{display:flex;justify-content:space-between;padding:12px 2px;border-bottom:.5px solid var(--line);font-size:15px}
+.grid-item:last-child{border-bottom:none}
+.grid-item span:last-child{color:var(--ok);font-variant-numeric:tabular-nums;font-size:13px}
+.sec-h{font-size:12px;color:var(--sub);letter-spacing:1.5px;margin:18px 0 4px}
+.ghost{width:100%;padding:15px;border-radius:14px;border:1px solid var(--line);
+  background:transparent;color:var(--ink);font-size:15px;font-weight:600;margin-top:10px}
+.ghost:active{opacity:.6}
+
+/* sheet */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.mask.on{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--card);
+  border-radius:20px 20px 0 0;
+  padding:8px 20px calc(16px + env(safe-area-inset-bottom));
+  transform:translateY(102%);transition:transform .28s cubic-bezier(.32,.72,0,1);
+  max-height:86vh;overflow:auto;
+}
+.sheet.on{transform:translateY(0)}
+.grab{width:36px;height:5px;border-radius:3px;background:#3a3a42;margin:6px auto 14px}
+.stitle{font-size:17px;font-weight:700;margin:0 0 14px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:13px;color:var(--sub);margin-bottom:6px}
+.field input,.field select{
+  width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink);font-size:16px;outline:none;-webkit-appearance:none;
+}
+.actions{display:flex;gap:10px;margin-top:16px}
+.btn{flex:1;padding:14px;border-radius:12px;border:none;font-size:16px;font-weight:600;
+  background:var(--line);color:var(--ink)}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.danger{background:transparent;color:var(--red);border:1px solid var(--line)}
+.hint{font-size:12px;color:var(--sub);line-height:1.6;margin:10px 0}
+.warn{background:#3a2a08;color:#ffcf80;border-radius:12px;padding:12px 14px;
+  font-size:13px;line-height:1.5;margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<button class="sndbtn" id="snd">🔊</button>
+<input type="file" id="picker" accept="image/*" style="display:none">
+<div class="mask" id="mask"></div>
+<div class="sheet" id="sheet"></div>
+
+<script>
+(function(){
+'use strict';
+
+var KEY = 'chumen.v2';
+var LOCK_MS = 60 * 60 * 1000;   // 封存后 1 小时才能再看
+var GROUPS = [
+  { key:'state', title:'状态', sub:'把自己收拾好', items:['牙刷了','脸洗了','胡子刮了'] },
+  { key:'stuff', title:'物品', sub:'口袋里、包里的', items:['纸巾','手机','网络','蓝牙耳机','钥匙','充电宝'] },
+  { key:'wear',  title:'衣服', sub:'身上穿的', items:['内搭','外套','裤子','鞋子','口罩','帽子'] }
+];
+
+var S = null, storageOK = true, tickTimer = null;
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function today(){
+  var d = new Date();
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+function hhmm(ts){
+  var d = ts ? new Date(ts) : new Date();
+  return pad(d.getHours())+':'+pad(d.getMinutes());
+}
+function cnDate(iso){
+  var p = (iso||today()).split('-');
+  var d = new Date(+p[0], +p[1]-1, +p[2]);
+  return (+p[1])+'月'+(+p[2])+'日 周'+['日','一','二','三','四','五','六'][d.getDay()];
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function $(id){ return document.getElementById(id); }
+
+/* ---------- 数据 ---------- */
+function seed(){
+  var items = [];
+  GROUPS.forEach(function(g, gi){
+    g.items.forEach(function(n){
+      items.push({ id: uid(), g: gi, name: n, at: null });
+    });
+  });
+  return { v:2, date: today(), step:0, items: items, sealedAt:0, no:'', photo:'', history:[] };
+}
+
+function load(){
+  var s;
+  try {
+    var raw = localStorage.getItem(KEY);
+    s = raw ? JSON.parse(raw) : seed();
+  } catch(e){ storageOK = false; s = seed(); }
+  if (!s || !Array.isArray(s.items)) s = seed();
+  if (!Array.isArray(s.history)) s.history = [];
+  if (typeof s.step !== 'number') s.step = 0;
+  s.items = s.items.filter(function(i){ return i && i.id; }).map(function(i){
+    return { id:i.id, g:(i.g>=0&&i.g<GROUPS.length)?i.g:0, name:String(i.name||''), at:i.at||null };
+  });
+  if (!s.items.length) s.items = seed().items;
+  return s;
+}
+
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; }
+  catch(e){ storageOK = false; }
+}
+
+function groupItems(gi){ return S.items.filter(function(i){ return i.g === gi; }); }
+function groupDone(gi){ return groupItems(gi).filter(function(i){ return i.at; }).length; }
+function totalDone(){ return S.items.filter(function(i){ return i.at; }).length; }
+function unlockAt(){ return (S.sealedAt || 0) + LOCK_MS; }
+function locked(){ return S.sealedAt > 0 && Date.now() < unlockAt(); }
+
+/* 跨天：没封存的直接重置；封存过的超时就归档 */
+function dailyReset(){
+  var t = today();
+  if (S.date === t) return false;
+  if (S.sealedAt){
+    S.history.unshift({ date:S.date, no:S.no, at:S.sealedAt, n:S.items.length });
+    S.history = S.history.slice(0,60);
+  }
+  S.date = t;
+  S.step = 0;
+  S.sealedAt = 0; S.no = ''; S.photo = '';
+  S.items.forEach(function(i){ i.at = null; });
+  save();
+  return true;
+}
+
+/* ---------- 渲染 ---------- */
+function render(){
+  var app = $('app');
+  if (S.sealedAt){
+    if (locked()) app.innerHTML = viewLocked();
+    else app.innerHTML = viewRevealed();
+  } else if (S.step >= GROUPS.length){
+    app.innerHTML = viewPhoto();
+  } else {
+    app.innerHTML = viewStep();
+  }
+  startTick();
+}
+
+function stepBar(cur){
+  var o = '<div class="steps">';
+  for (var i=0;i<GROUPS.length;i++){
+    o += '<i class="'+(i<cur?'on':(i===cur?'on cur':''))+'"></i>';
+  }
+  return o + '</div>';
+}
+
+function viewStep(){
+  var gi = S.step, g = GROUPS[gi];
+  var list = groupItems(gi);
+  var done = list.filter(function(i){ return i.at; }).length;
+  var o = '<div class="screen">';
+  if (!storageOK) o += '<div class="warn">这个环境存不下数据，请用 Safari 打开 /chumen.html</div>';
+  o += stepBar(gi);
+  o += '<div class="eyebrow">第 ' + (gi+1) + ' 步 / 共 ' + GROUPS.length + ' 步</div>';
+  o += '<h1 class="h1">' + g.title + '</h1>';
+  o += '<p class="h2">' + g.sub + '　·　' + done + ' / ' + list.length + '</p>';
+
+  list.forEach(function(it){
+    o += '<div class="item'+(it.at?' on':'')+'" data-act="toggle" data-id="'+it.id+'">'+
+      '<span class="circ">'+(it.at?'✓':'')+'</span>'+
+      '<span class="nm">'+esc(it.name)+'</span>'+
+      '<span class="tm">'+(it.at?esc(hhmm(it.at)):'')+'</span>'+
+      '</div>';
+  });
+
+  o += '<div class="hint" style="text-align:center;margin-top:16px">按住不放，等横条走满才会打勾</div>';
+  o += '<button class="ghost" data-act="manage" style="margin-top:18px">调整清单</button>';
+  o += '</div>';
+
+  var left = list.length - done;
+  var label = left > 0 ? ('还有 ' + left + ' 样没确认') : (gi === GROUPS.length-1 ? '这一组好了，去拍照' : '这一组好了，下一步');
+  o += '<div class="btnrow"><button class="bigbtn" data-act="next"'+(left>0?' disabled':'')+'>'+label+'</button></div>';
+  return o;
+}
+
+function viewPhoto(){
+  var o = '<div class="screen">';
+  o += stepBar(GROUPS.length);
+  o += '<div class="eyebrow">最后一步</div>';
+  o += '<h1 class="h1">拍一张</h1>';
+  o += '<p class="h2">把身上、手里的拍进去。这张和你一起被封存，一小时内谁都改不了。</p>';
+
+  if (S.photo){
+    o += '<div class="preview"><img src="'+S.photo+'" alt=""></div>';
+    o += '<button class="ghost" data-act="shoot">重拍</button>';
+  } else {
+    o += '<div class="shootbox" data-act="shoot"><div class="cam">📷</div>'+
+         '<div class="t">打开相机</div><div class="s">拍全身或手里的东西</div></div>';
+    o += '<a class="skip" data-act="skip">不拍了，直接封存</a>';
+  }
+  o += '</div>';
+
+  o += '<div class="btnrow"><button class="bigbtn gold" data-act="seal"'+(!S.photo?' disabled':'')+'>封存，出门</button></div>';
+  return o;
+}
+
+function viewLocked(){
+  var ms = Math.max(0, unlockAt() - Date.now());
+  var o = '<div class="sealpage">';
+  o += '<div class="stamp">已封存</div>';
+  o += '<div class="seal-no">记录编号 '+esc(S.no)+'</div>';
+  o += '<div class="seal-time">'+cnDate(S.date)+' '+esc(hhmm(S.sealedAt))+'</div>';
+  o += '<div class="seal-count">共 '+S.items.length+' 样，全部确认</div>';
+  o += '<div class="cd" id="cd">'+fmtRemain(ms)+'</div>';
+  o += '<div class="cdsub">之后才可以查看这份记录</div>';
+  if (S.photo) o += '<div class="preview" style="margin-top:26px"><img src="'+S.photo+'" alt=""></div>';
+  o += '<div class="seal-note">'+
+       '<b>这一小时，什么都不用做。</b><br>'+
+       '记录不会变，也改不了。<br>'+
+       '你不需要再回来确认一次。</div>';
+  o += '</div>';
+  return o;
+}
+
+function viewRevealed(){
+  var o = '<div class="screen">';
+  o += '<div class="rec-head"><div class="rec-badge">✓</div><div>'+
+       '<div style="font-size:17px;font-weight:700">这份记录是真的</div>'+
+       '<div class="mini">'+cnDate(S.date)+' '+esc(hhmm(S.sealedAt))+' 封存 · 编号 '+esc(S.no)+'</div>'+
+       '</div></div>';
+
+  if (S.photo) o += '<div class="preview"><img src="'+S.photo+'" alt=""></div>';
+
+  GROUPS.forEach(function(g, gi){
+    var list = groupItems(gi);
+    if (!list.length) return;
+    o += '<div class="sec-h">'+g.title+'</div>';
+    list.forEach(function(it){
+      o += '<div class="grid-item"><span>'+esc(it.name)+'</span><span>'+(it.at?esc(hhmm(it.at)):'—')+'</span></div>';
+    });
+  });
+
+  o += '<div class="hint" style="margin-top:20px">封存于 '+esc(hhmm(S.sealedAt))+'，之后没有任何改动。</div>';
+  o += '<button class="ghost" data-act="copy">复制记录</button>';
+  o += '<button class="ghost" data-act="newtrip">开始下一次</button>';
+  o += '</div>';
+  return o;
+}
+
+function fmtRemain(ms){
+  var s = Math.ceil(ms/1000);
+  var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  if (h > 0) return h + ' 时 ' + pad(m) + ' 分';
+  return pad(m) + ' : ' + pad(sec);
+}
+
+function startTick(){
+  clearInterval(tickTimer);
+  if (!locked()) return;
+  tickTimer = setInterval(function(){
+    if (!locked()){ render(); return; }
+    var el = $('cd');
+    if (el) el.textContent = fmtRemain(unlockAt() - Date.now());
+  }, 1000);
+}
+
+/* ---------- 动作 ---------- */
+function toggle(id){
+  if (S.sealedAt) return;
+  var it = S.items.filter(function(i){ return i.id===id; })[0];
+  if (!it) return;
+  it.at = it.at ? null : Date.now();
+  save(); render();
+}
+
+function nextStep(){
+  var gi = S.step;
+  var left = groupItems(gi).filter(function(i){ return !i.at; });
+  if (left.length){ alert('还有 ' + left.length + ' 样没确认'); return; }
+  S.step = Math.min(GROUPS.length, gi + 1);
+  save(); render(); window.scrollTo(0,0);
+}
+
+function seal(){
+  if (!S.photo){ alert('先拍一张'); return; }
+  if (S.items.some(function(i){ return !i.at; })){ alert('还有东西没确认'); return; }
+  var now = Date.now();
+  S.sealedAt = now;
+  S.no = today().replace(/-/g,'') + '-' + pad(new Date(now).getHours()) + pad(new Date(now).getMinutes());
+  save();
+  beep('seal');
+  render();
+  window.scrollTo(0,0);
+}
+
+function newTrip(){
+  if (!confirm('开始下一次出门确认？')) return;
+  S.history.unshift({ date:S.date, no:S.no, at:S.sealedAt, n:S.items.length });
+  S.history = S.history.slice(0,60);
+  S.step = 0; S.sealedAt = 0; S.no = ''; S.photo = '';
+  S.items.forEach(function(i){ i.at = null; });
+  save(); render(); window.scrollTo(0,0);
+}
+
+/* ---------- 清单编辑（只在未封存时可用） ---------- */
+function sheetManage(){
+  var rows = '';
+  GROUPS.forEach(function(g, gi){
+    rows += '<div class="sec-h" style="margin:14px 0 2px">'+g.title+'</div>';
+    groupItems(gi).forEach(function(it){
+      rows += '<div style="display:flex;align-items:center;justify-content:space-between;'+
+        'padding:10px 2px;border-bottom:.5px solid var(--line);font-size:15px">'+
+        '<span>'+esc(it.name)+'</span>'+
+        '<span style="color:var(--red);padding:0 8px" data-del="'+it.id+'">删</span></div>';
+    });
+  });
+
+  $('sheet').innerHTML = '<div class="grab"></div>'+
+    '<div class="stitle">调整清单</div>'+
+    '<button class="btn" style="width:100%;margin-bottom:8px" id="g_add">＋ 加一样</button>'+
+    rows +
+    '<div class="hint">删掉的东西不会出现在下次确认里。</div>'+
+    '<div class="actions"><button class="btn" id="g_close">关闭</button></div>';
+  $('mask').classList.add('on');
+  $('sheet').classList.add('on');
+
+  $('g_close').onclick = closeSheet;
+  $('g_add').onclick = function(){ closeSheet(); setTimeout(sheetAdd, 280); };
+  $('sheet').addEventListener('click', function(e){
+    var d = e.target.closest('[data-del]');
+    if (!d) return;
+    var id = d.dataset.del;
+    if (S.items.length <= 1){ alert('至少留一样'); return; }
+    S.items = S.items.filter(function(x){ return x.id!==id; });
+    S.step = Math.min(S.step, GROUPS.length-1);
+    save(); closeSheet(); render();
+  });
+}
+
+function sheetAdd(){
+  var opts = GROUPS.map(function(g,i){ return '<option value="'+i+'">'+g.title+'</option>'; }).join('');
+  $('sheet').innerHTML = '<div class="grab"></div>'+
+    '<div class="stitle">加一样</div>'+
+    '<div class="field"><label>放在哪一组</label><select id="f_g">'+opts+'</select></div>'+
+    '<div class="field"><label>名称</label><input id="f_n" placeholder="例如：雨伞" autocomplete="off"></div>'+
+    '<div class="actions"><button class="btn" id="f_c">取消</button>'+
+    '<button class="btn primary" id="f_s">加上</button></div>';
+  $('mask').classList.add('on');
+  $('sheet').classList.add('on');
+  $('f_c').onclick = closeSheet;
+  $('f_s').onclick = function(){
+    var v = $('f_n').value.trim();
+    if (!v) return;
+    S.items.push({ id: uid(), g: parseInt($('f_g').value,10)||0, name: v, at: null });
+    save(); closeSheet(); render();
+  };
+  setTimeout(function(){ var e=$('f_n'); if(e) e.focus(); }, 300);
+}
+
+function closeSheet(){
+  $('mask').classList.remove('on');
+  $('sheet').classList.remove('on');
+  setTimeout(function(){ $('sheet').innerHTML=''; }, 260);
+}
+
+/* ---------- 记录文本 ---------- */
+function buildText(){
+  var lines = ['【出门确认 · 已封存】'];
+  lines.push(cnDate(S.date) + ' ' + hhmm(S.sealedAt) + ' 封存');
+  lines.push('编号：' + S.no);
+  GROUPS.forEach(function(g, gi){
+    var list = groupItems(gi);
+    if (!list.length) return;
+    lines.push(g.title + '：' + list.map(function(i){ return i.name + ' ' + (i.at?hhmm(i.at):'—'); }).join('，'));
+  });
+  lines.push('共 ' + S.items.length + ' 样，封存后未改动。');
+  return lines.join('\n');
+}
+
+function copyText(txt){
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){ alert('已复制'); },
+        function(){ fallbackCopy(txt); });
+      return;
+    }
+  } catch(e){}
+  fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  var ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position='fixed'; ta.style.top='-1000px';
+  document.body.appendChild(ta); ta.select();
+  var ok=false;
+  try { ok = document.execCommand('copy'); } catch(e){}
+  document.body.removeChild(ta);
+  alert(ok ? '已复制' : '复制失败：\n\n'+txt);
+}
+
+/* ---------- 照片 ---------- */
+function shoot(){ var el=$('picker'); el.value=''; el.click(); }
+
+function shrink(file, cb){
+  var fr = new FileReader();
+  fr.onload = function(){
+    var img = new Image();
+    img.onload = function(){
+      var max = 900;
+      var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      var s = Math.min(1, max/Math.max(w,h));
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(w*s));
+      c.height = Math.max(1, Math.round(h*s));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      try { cb(c.toDataURL('image/jpeg', 0.72)); } catch(e){ cb(''); }
+    };
+    img.onerror = function(){ cb(''); };
+    img.src = fr.result;
+  };
+  fr.onerror = function(){ cb(''); };
+  fr.readAsDataURL(file);
+}
+
+$('picker').addEventListener('change', function(){
+  var f = this.files && this.files[0];
+  if (!f) return;
+  shrink(f, function(data){
+    if (!data){ alert('这张读不出来，换一张'); return; }
+    S.photo = data; save(); render();
+  });
+});
+
+/* ---------- 声音 ---------- */
+var AC = null;
+var soundOn = true;
+try { soundOn = localStorage.getItem('chumen.sound') !== '0'; } catch(e){}
+
+function beep(kind){
+  if (!soundOn) return;
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    var t = AC.currentTime;
+    function tone(f, at, dur, vol){
+      var o = AC.createOscillator(), g = AC.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t + at);
+      g.gain.exponentialRampToValueAtTime(vol, t + at + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+      o.connect(g); g.connect(AC.destination);
+      o.start(t + at); o.stop(t + at + dur + 0.02);
+    }
+    if (kind === 'seal'){ tone(660, 0, 0.18, 0.11); tone(990, 0.13, 0.26, 0.1); }
+    else if (kind === 'err'){ tone(320, 0, 0.12, 0.08); }
+    else { tone(1046, 0, 0.055, 0.075); tone(700, 0.025, 0.05, 0.05); }
+  } catch(e){}
+}
+
+function updSnd(){
+  var b = $('snd');
+  if (b) b.textContent = soundOn ? '🔊' : '🔇';
+}
+$('snd').addEventListener('click', function(){
+  soundOn = !soundOn;
+  try { localStorage.setItem('chumen.sound', soundOn ? '1' : '0'); } catch(e){}
+  updSnd();
+  if (soundOn) beep('tick');
+});
+updSnd();
+
+/* ---------- 按住确认 ---------- */
+var pressTimer = null, pressEl = null, sx = 0, sy = 0, pressDone = false;
+var toastTimer = null;
+
+function toast(msg){
+  var t = $('toast');
+  if (!t){
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.className = 'toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 1000);
+}
+
+function cancelPress(){
+  if (pressTimer){ clearTimeout(pressTimer); pressTimer = null; }
+  if (pressEl){ pressEl.classList.remove('pressing'); }
+}
+
+function startPress(el){
+  if (S.sealedAt || S.step >= GROUPS.length) return;
+  cancelPress();
+  pressEl = el;
+  pressDone = false;
+  el.classList.add('pressing');
+  pressTimer = setTimeout(function(){
+    var id = el.dataset.id;
+    el.classList.remove('pressing');
+    pressEl = null; pressTimer = null; pressDone = true;
+    beep('tick');
+    toggle(id);
+    var again = document.querySelector('.item[data-id="'+id+'"]');
+    if (again){
+      again.classList.add('pop');
+      setTimeout(function(){ again.classList.remove('pop'); }, 500);
+    }
+  }, 450);
+}
+
+document.addEventListener('pointerdown', function(e){
+  var el = e.target.closest('.item[data-id]');
+  if (!el) return;
+  sx = e.clientX; sy = e.clientY;
+  startPress(el);
+});
+document.addEventListener('pointermove', function(e){
+  if (!pressEl) return;
+  if (Math.abs(e.clientX - sx) > 12 || Math.abs(e.clientY - sy) > 12) cancelPress();
+});
+document.addEventListener('pointerup', function(){
+  var was = !!pressEl;
+  cancelPress();
+  if (was && !pressDone) toast('按住不放，等横条走满');
+  pressEl = null;
+});
+document.addEventListener('pointercancel', function(){
+  cancelPress(); pressEl = null;
+});
+
+/* ---------- 事件 ---------- */
+document.addEventListener('click', function(e){
+  var el = e.target.closest('[data-act]');
+  if (!el) return;
+  var act = el.dataset.act;
+
+  if (act === 'next') nextStep();
+  else if (act === 'seal') seal();
+  else if (act === 'shoot') shoot();
+  else if (act === 'skip'){
+    if (!confirm('不拍照直接封存？')) return;
+    S.step = GROUPS.length; save(); render();
+  }
+  else if (act === 'manage') sheetManage();
+  else if (act === 'copy') copyText(buildText());
+  else if (act === 'newtrip') newTrip();
+});
+
+$('mask').addEventListener('click', closeSheet);
+
+/* ---------- 启动 ---------- */
+S = load();
+dailyReset();
+save();
+render();
+
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden){
+    if (dailyReset()) render();
+    else if (S.sealedAt && !locked()) render();
+  }
+});
+})();
+</script>
+</body>
+</html>
